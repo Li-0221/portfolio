@@ -1,83 +1,79 @@
-# Sample workflow for building and deploying a Nuxt site to GitHub Pages
 #
-# To get started with Nuxt see: https://nuxtjs.org/docs/get-started/installation
+# 用于构建和部署 Nuxt 站点到 GitHub Pages 的工作流
+# 针对 pnpm 和 Nuxt 3 进行了修改
 #
 name: Deploy Nuxt site to Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # 运行于推送到默认分支时
   push:
     branches: ["main"]
 
-  # Allows you to run this workflow manually from the Actions tab
+  # 允许你从 Actions 标签页手动运行此工作流
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+# 设置 GITHUB_TOKEN 的权限以允许部署到 GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+# 只允许一个并发部署
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # Build job
+  # 构建任务
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Detect package manager
-        id: detect-package-manager
-        run: |
-          if [ -f "${{ github.workspace }}/yarn.lock" ]; then
-            echo "manager=yarn" >> $GITHUB_OUTPUT
-            echo "command=install" >> $GITHUB_OUTPUT
-            exit 0
-          elif [ -f "${{ github.workspace }}/package.json" ]; then
-            echo "manager=npm" >> $GITHUB_OUTPUT
-            echo "command=ci" >> $GITHUB_OUTPUT
-            exit 0
-          else
-            echo "Unable to determine package manager"
-            exit 1
-          fi
+
+      # ----------------------------------------------------
+      # 更改点 1: 添加 pnpm/action-setup 来安装 pnpm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+      # ----------------------------------------------------
+
+      # ----------------------------------------------------
+      # 更改点 2: 设置 Node.js 并指定缓存 'pnpm'
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: ${{ steps.detect-package-manager.outputs.manager }}
+          cache: 'pnpm' # <--- 修改点
+      # ----------------------------------------------------
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
-          # Automatically inject router.base in your Nuxt configuration file and set
-          # target to static (https://nuxtjs.org/docs/configuration-glossary/configuration-target/).
-          #
-          # You may remove this line if you want to manage the configuration yourself.
           static_site_generator: nuxt
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            dist
-            .nuxt
-          key: ${{ runner.os }}-nuxt-build-${{ hashFiles('dist') }}
-          restore-keys: |
-            ${{ runner.os }}-nuxt-build-
+      
+      # ----------------------------------------------------
+      # 更改点 3: 移除了 "Detect package manager" 和 "Restore cache"
+      # 我们现在直接运行 pnpm install
       - name: Install dependencies
-        run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+        run: pnpm install # <--- 修改点
+      # ----------------------------------------------------
+      
+      # ----------------------------------------------------
+      # 更改点 4: 使用 pnpm run generate
       - name: Static HTML export with Nuxt
-        run: ${{ steps.detect-package-manager.outputs.manager }} run generate
+        run: pnpm run generate # <--- 修改点
+      # ----------------------------------------------------
+
+      # ----------------------------------------------------
+      # 更改点 5: (重要) 更新了 artifact 路径
+      # Nuxt 3 默认输出到 .output/public
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./.output/public # <--- 修改点
+      # ----------------------------------------------------
 
-  # Deployment job
+  # 部署任务 (无需更改)
   deploy:
     environment:
       name: github-pages
